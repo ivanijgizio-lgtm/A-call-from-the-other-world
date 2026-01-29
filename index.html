@@ -198,7 +198,7 @@
       width: 100%;
       height: 100%;
       border-radius: 10px;
-      background:
+     :
         radial-gradient(circle at 30% 0%, rgba(248, 250, 252, 0.18), transparent 55%),
         radial-gradient(circle at 70% 100%, rgba(15, 23, 42, 0.85), #020617);
       display: flex;
@@ -500,6 +500,50 @@
       color: rgba(148, 163, 184, 0.8);
     }
 
+    .uploaded-photos {
+      margin-top: 8px;
+      display: flex;
+      flex-wrap: wrap;
+      gap: 8px;
+    }
+
+    .photo-thumbnail {
+      width: 60px;
+      height: 60px;
+      border-radius: 8px;
+      border: 1px solid rgba(148, 163, 184, 0.5);
+      overflow: hidden;
+      position: relative;
+      background: rgba(15, 23, 42, 0.9);
+    }
+
+    .photo-thumbnail img {
+      width: 100%;
+      height: 100%;
+      object-fit: cover;
+    }
+
+    .photo-thumbnail .remove-btn {
+      position: absolute;
+      top: 2px;
+      right: 2px;
+      width: 20px;
+      height: 20px;
+      background: rgba(255, 84, 89, 0.9);
+      border: none;
+      border-radius: 4px;
+      color: white;
+      font-size: 12px;
+      cursor: pointer;
+      display: none;
+    }
+
+    .photo-thumbnail:hover .remove-btn {
+      display: flex;
+      align-items: center;
+      justify-content: center;
+    }
+
     .steps-indicator {
       display: flex;
       align-items: center;
@@ -538,7 +582,7 @@
 
     .sim-layout {
       display: grid;
-      grid-template-columns: minmax(0, 1.1fr) minmax(0, 1.1fr);
+      grid-template-colns: minmax(0, 1.1fr) minmax(0, 1.1fr);
       gap: 10px;
     }
 
@@ -551,15 +595,23 @@
     .video-shell {
       border-radius: 14px;
       border: 1px solid rgba(30, 64, 175, 0.7);
-      background:
-        radial-gradient(circle at top left, rgba(15, 23, 42, 0.85), rgba(15, 23, 42, 0.95)),
-        url("https://images.pexels.com/photos/771883/pexels-photo-771883.jpeg?auto=compress&cs=tinysrgb&w=1200") center/cover;
+      background: rgba(15, 23, 42, 0.95);
       position: relative;
       overflow: hidden;
       min-height: 180px;
       display: flex;
       align-items: flex-end;
       justify-content: stretch;
+    }
+
+    .video-background-image {
+      position: absolute;
+      inset: 0;
+      object-fit: cover;
+      width: 100%;
+      height: 100%;
+      z-index: 0;
+      opacity: 0.7;
     }
 
     .video-mask-overlay {
@@ -569,6 +621,7 @@
         radial-gradient(circle at top, rgba(15, 23, 42, 0.55), transparent 65%),
         linear-gradient(to top, rgba(15, 23, 42, 0.95), rgba(15, 23, 42, 0.4));
       mix-blend-mode: multiply;
+      z-index: 0;
     }
 
     .video-content {
@@ -712,7 +765,7 @@
     .chat-scroll {
       flex: 1;
       display: flex;
-      flex-direction: column;
+   direction: column;
       gap: 8px;
       padding-right: 4px;
       overflow-y: auto;
@@ -1015,10 +1068,14 @@
                 <label>Медиа (демо, не загружается на сервер)</label>
                 <div class="upload-zone">
                   <div><strong>Фото</strong></div>
-                  <input type="file" accept="image/*" multiple />
-                  <small>В реальном продукте эти файлы зашифруются и будут храниться в защищённом хранилище.</small>
+                  <input type="file" id="photoInput" accept="image/*" multiple />
+                  <small>✓ Загруженные фото появятся в демо-видео. В реальном продукте эти файлы зашифруются и будут храниться в защищённом хранилище.</small>
+                  
+                  <!-- ФИКС: Область для отображения загруженных фото -->
+                  <div class="uploaded-photos" id="photoPreview"></div>
+
                   <div style="margin-top:8px;"><strong>Видео (опционально)</strong></div>
-                  <input type="file" accept="video/*" />
+                  <input type="file" id="videoInput" accept="video/*" />
                   <small>Короткие фрагменты, где видна манера речи и жесты.</small>
                 </div>
               </div>
@@ -1070,6 +1127,9 @@
             <div class="sim-layout">
               <!-- Видеоблок -->
               <div class="video-shell">
+                <!-- ФИКС: Добавил img для отображения загруженного фото -->
+                <img id="videoBackgroundImage" class="video-background-image" alt="Загруженное фото" style="display: none;" />
+                
                 <div class="video-mask-overlay"></div>
                 <div class="video-content">
                   <div class="video-avatar">
@@ -1186,6 +1246,7 @@
   </div>
 
   <script>
+    // ====== ИСПРАВЛЕННЫЙ КОД ======
     // Состояние в памяти (без хранения в браузере/сервере)
     const form = document.getElementById("profileForm");
     const simulateBtn = document.getElementById("simulateBtn");
@@ -1198,6 +1259,14 @@
     const toast = document.getElementById("toast");
     const toastText = document.getElementById("toastText");
     const stepDotCall = document.getElementById("stepDotCall");
+    
+    // ФИКС: Элементы для работы с фото
+    const photoInput = document.getElementById("photoInput");
+    const photoPreview = document.getElementById("photoPreview");
+    const videoBackgroundImage = document.getElementById("videoBackgroundImage");
+
+    // Массив для хранения загруженных фото в виде Data URLs
+    let uploadedPhotos = [];
 
     function showToast(message) {
       toastText.textContent = message;
@@ -1214,6 +1283,62 @@
       const second = parts[1] ? parts[1][0] : "";
       return (first + second).toUpperCase() || "∎";
     }
+
+    // ФИКС: Обработка загрузки фото
+    photoInput.addEventListener("change", (event) => {
+      const files = event.target.files;
+      uploadedPhotos = [];
+      photoPreview.innerHTML = "";
+
+      if (files.length === 0) {
+        videoBackgroundImage.style.display = "none";
+        showToast("Фото выбраны удалены.");
+        return;
+      }
+
+      for (let i = 0; i < files.length; i++) {
+        const file = files[i];
+        const reader = new FileReader();
+
+        reader.onload = (e) => {
+          const dataUrl = e.target.result;
+          uploadedPhotos.push(dataUrl);
+
+          // Создаём превью
+          const photoThumb = document.createElement("div");
+          photoThumb.className = "photo-thumbnail";
+          photoThumb.innerHTML = `
+            <img src="${dataUrl}" alt="Фото ${i + 1}" />
+            <button type="button" class="remove-btn" data-index="${uploadedPhotos.length - 1}">×</button>
+          `;
+
+          photoPreview.appendChild(photoThumb);
+
+          // Обработчик удаления фото
+          photoThumb.querySelector(".remove-btn").addEventListener("click", (evt) => {
+            evt.preventDefault();
+            const idx = parseInt(evt.target.dataset.index);
+            uploadedPhotos.splice(idx, 1);
+            photoThumb.remove();
+            
+            if (uploadedPhotos.length === 0) {
+              videoBackgroundImage.style.display = "none";
+            }
+            showToast("Фото удалено.");
+          });
+
+          // Если это первое фото, показываем в видеоблоке
+          if (uploadedPhotos.length === 1) {
+            videoBackgroundImage.src = dataUrl;
+            videoBackgroundImage.style.display = "block";
+          }
+        };
+
+        reader.readAsDataURL(file);
+      }
+
+      showToast(`Загружено ${files.length} фото. В демо-видео отобразится первое.`);
+    });
 
     function generateDemoReply(userText, relPhrases, relCharacter) {
       const basePhrases = [
@@ -1249,6 +1374,14 @@
       videoNameEl.textContent = displayName;
       videoAvatarInitialsEl.textContent = getInitials(displayName);
 
+      // ФИКС: Проверяем, загружены ли фото, если нет — показываем дефолтный фон
+      if (uploadedPhotos.length === 0) {
+        videoBackgroundImage.style.display = "none";
+        showToast("⚠️ Загрузите фото, чтобы видеть его в демо-видео.");
+      } else {
+        videoBackgroundImage.style.display = "block";
+      }
+
       const introBubble = document.getElementById("bubbleRel1");
       const secondBubble = document.getElementById("bubbleRel2");
 
@@ -1260,16 +1393,20 @@
           ? `Ты описал(а) меня как: ${relCharacter}. Я остаюсь тем же человеком в твоей памяти. Расскажи, что сейчас происходит в твоей жизни?`
           : `Я здесь, насколько это возможно через технологию. Расскажи, что сейчас волнует и что ты хочешь обсудить.`;
 
-      showToast("Портрет применён к демо‑звонку. Данные не сохраняются.");
+      showToast("✓ Портрет применён. Фото (если загружено) видно в демо-звонке.");
       chatScroll.scrollTop = chatScroll.scrollHeight;
     });
 
     clearBtn.addEventListener("click", () => {
       form.reset();
+      photoInput.value = "";
+      photoPreview.innerHTML = "";
+      uploadedPhotos = [];
+      videoBackgroundImage.style.display = "none";
       videoNameEl.textContent = "Родственник";
       videoAvatarInitialsEl.textContent = "∎";
       stepDotCall.classList.remove("active");
-      showToast("Форма очищена (demo).");
+      showToast("Форма и фото очищены (demo).");
     });
 
     chatSendBtn.addEventListener("click", () => {
